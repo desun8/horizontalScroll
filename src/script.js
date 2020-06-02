@@ -1,39 +1,28 @@
-import { throttle } from "lodash";
+// import { throttle } from "lodash";
 
 class Scroll {
   constructor(elm) {
     this.elm = elm;
     this.rule = "wheel";
     this.anim = {
-      // id: null,
-      // id2: null,
-      // stop: false,
-      // start: null,
-      // end: null,
       position: 0,
-      duration: 1000,
+      duration: 700,
       easeOutQuad(pos) {
         return -((pos - 1) ** 2 - 1);
       },
     };
-    this.prevDeltaX = null;
 
     this.init();
   }
 
   animation(scrollElm, from, to, ease) {
-    // console.log("Scroll -> animation -> to", to);
-    // console.log("Scroll -> animation -> from", from);
     const elm = scrollElm;
     let stop = false;
 
     let start = null;
-    let end = null;
+    // let end = null;
 
     const { duration } = this.anim;
-
-    // const from = this.anim.position;
-    // const to = isFill ? 0 : 1;
 
     const anim = (now) => {
       if (stop) return;
@@ -44,16 +33,13 @@ class Scroll {
 
       this.anim.position = (to - from) * value;
 
-      // if (this.anim.position >= to) stop = true;
-      // if (stop) return;
-
       elm.scrollLeft = to + this.anim.position;
       requestAnimationFrame(anim);
     };
 
     const startAnimation = (timestamp) => {
       start = timestamp;
-      end = start + duration;
+      // end = start + duration;
 
       anim(timestamp);
     };
@@ -66,7 +52,7 @@ class Scroll {
   // *****
   // Добавил возможность горизонтального скролла для тачпадов
   horizontalScroll(delta, fromEvent) {
-    const shouldInvertDelta = (fromEvent) => {
+    const shouldInvertDelta = () => {
       const x = fromEvent.wheelDeltaX;
       const y = fromEvent.wheelDeltaY;
 
@@ -80,7 +66,7 @@ class Scroll {
       return fromEvent.type.match(this.rule) && scrollY;
     };
 
-    const transformDelta = (delta, fromEvent) => {
+    const transformDelta = () => {
       if (shouldInvertDelta(fromEvent)) {
         return {
           x: delta.y,
@@ -91,22 +77,7 @@ class Scroll {
       return delta;
     };
 
-    const newDelta = transformDelta(delta, fromEvent);
-
-    // if (this.prevDeltaX === null) this.prevDeltaX = newDelta.x;
-
-    // if (
-    //   newDelta.x - this.prevDeltaX > 0
-    // ) {
-    //   newDelta.x = Math.min(newDelta.x - this.prevDeltaX, 50);
-    // }
-    // if (
-    //   newDelta.x - this.prevDeltaX < 0
-    // ) {
-    //   newDelta.x = Math.max(newDelta.x - this.prevDeltaX, -50);
-    // }
-
-    // this.prevDeltaX = newDelta.x;
+    const newDelta = transformDelta();
 
     newDelta.x *= -0.05;
     newDelta.y *= -0.05;
@@ -114,34 +85,30 @@ class Scroll {
   }
 
   onScroll(e) {
-    // console.log("Scroll -> onScroll -> e", e);
     e.preventDefault();
 
     const ct = e.currentTarget;
-    // const x = e.deltaX;
-    // const y = e.deltaY;
     const x = e.wheelDeltaX;
     const y = e.wheelDeltaY;
 
-    const delta = this.horizontalScroll({ x, y }, e);
-    console.log("Scroll -> onScroll -> delta", delta);
+    if (x > 5 || x < -5 || y > 5 || y < -5) {
+      const delta = this.horizontalScroll({ x, y }, e);
 
-    // if (delta.x - this.prevDeltaX > 100 || delta.x - this.prevDeltaX < -100) {
-    //   delta.x *= 0.1;
-    // }
+      const currScrollLeft = ct.scrollLeft;
+      const newScrollLeft = currScrollLeft + delta.x;
 
-    // this.prevDeltaX = delta.x;
+      // фикс для тачпада макбука
+      // иногда при скролле вперед (вертикальный свайп) происходит сдвиг назад на ~1px
+      // if (delta.isInvert && x > 0 && newScrollLeft < currScrollLeft) {
+      //   newScrollLeft = currScrollLeft;
+      // }
 
-    const currScrollLeft = ct.scrollLeft;
-    const newScrollLeft = currScrollLeft + delta.x;
-    // console.log("Scroll -> onScroll -> delta.x", delta.x);
-    // ct.scrollLeft = newScrollLeft;
-
-    this.animation(ct, currScrollLeft, newScrollLeft, this.anim.easeOutQuad);
+      this.animation(ct, currScrollLeft, newScrollLeft, this.anim.easeOutQuad);
+    }
   }
 
   buildEvents() {
-    this.elm.addEventListener("wheel", this.onScroll.bind(this));
+    this.elm.addEventListener("wheel", this.onScroll.bind(this), false);
   }
 
   init() {
@@ -149,53 +116,8 @@ class Scroll {
   }
 }
 
+
+// init
 const scrollElm = document.querySelector("#scroll-elm");
-
-const scroll = new Scroll(scrollElm);
-
-// test requestAnimationFrame
-const btn = document.querySelector("#test-btn");
-const circle = document.querySelector(".test-circle");
-
-let isFill = false;
-let position = 0;
-
-// Math.pow(pos - 1, 2) => (pos - 1) ** 2
-const easeOutQuad = (pos) => -((pos - 1) ** 2 - 1);
-const animation = () => {
-  let stop = false;
-
-  const duration = 1000;
-  let start = null;
-  let end = null;
-
-  const from = position;
-  const to = isFill ? 0 : 1;
-
-  const anim = (now) => {
-    if (stop) return;
-    if (now - start >= duration) stop = true;
-
-    const progress = (now - start) / duration;
-    const value = easeOutQuad(progress);
-
-    position = from + (to - from) * value;
-
-    circle.style.transform = `scale(${position})`;
-    requestAnimationFrame(anim);
-  };
-
-  const startAnimation = (timestamp) => {
-    start = timestamp;
-    end = start + duration;
-    anim(timestamp);
-  };
-
-  requestAnimationFrame(startAnimation);
-};
-
-btn.addEventListener("click", () => {
-  animation();
-
-  isFill = !isFill;
-});
+const initHorizontalScroll = () => new Scroll(scrollElm);
+initHorizontalScroll();
